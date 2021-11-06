@@ -18,62 +18,62 @@ SECTION "main", ROM0[$0150]
     ; ======================
     ; | BACKGROUND PALETTE |
     ; ======================
-    ld a, %10000000             ; write to palette 0. high bit to 1 to automatically increase where I will write 
-    ld [$ff68], a
+    ld a, %10000000                 ; write to palette 0. high bit to 1 to automatically increase where I will write 
+    ld [rBCPS], a                  ; Background Color Palette Specification
     ; actually load colors
-    ld bc, %0111101000000000    ; cyan
+    ld bc, %0111101000000000        ; cyan
     ld a, c
-    ld [$ff69], a
+    ld [rBCPD], a                  ; Background Color Palette Data
     ld a, b
-    ld [$ff69], a
-    ld bc, %0000001111010000    ; green
+    ld [rBCPD], a
+    ld bc, %0000001111010000        ; green
     ld a, c
-    ld [$ff69], a
+    ld [rBCPD], a
     ld a, b
-    ld [$ff69], a
-    ld bc, %0100000000011110    ; pink
+    ld [rBCPD], a
+    ld bc, %0100000000011110        ; pink
     ld a, c
-    ld [$ff69], a
+    ld [rBCPD], a
     ld a, b
-    ld [$ff69], a
-    ld bc, %0111111111111111    ; white
+    ld [rBCPD], a
+    ld bc, %0111111111111111        ; white
     ld a, c
-    ld [$ff69], a
+    ld [rBCPD], a
     ld a, b
-    ld [$ff69], a
+    ld [rBCPD], a
 
     ; ==================
     ; | SPRITE PALETTE |
     ; ==================
 
     ld a, %10000000
-    ld [$ff6a], a
+    ld [rOCPS], a                  ; Object Color Palette Specification
 
-    ld bc, %0000000000000000  ; transparent
+    ld bc, %0000000000000000        ; transparent
     ld a, c
-    ld [$ff6b], a
+    ld [rOCPD], a                  ; Object Color Palette Data
     ld a, b
-    ld [$ff6b], a
-    ld bc, %0010110100100101  ; dark
+    ld [rOCPD], a
+    ld bc, %0010110100100101        ; dark
     ld a, c
-    ld [$ff6b], a
+    ld [rOCPD], a
     ld a, b
-    ld [$ff6b], a
-    ld bc, %0100000111001101  ; med
+    ld [rOCPD], a
+    ld bc, %0100000111001101        ; med
     ld a, c
-    ld [$ff6b], a
+    ld [rOCPD], a
     ld a, b
-    ld [$ff6b], a
-    ld bc, %0100001000010001  ; white
+    ld [rOCPD], a
+    ld bc, %0100001000010001        ; white
     ld a, c
-    ld [$ff6b], a
+    ld [rOCPD], a
     ld a, b
-    ld [$ff6b], a
+    ld [rOCPD], a
 
     ; =====================================================
     ; | LOAD BACKGROUND from $8000 to $8000 + 8 * 2 bytes |
     ; =====================================================
-    ld hl, $8000
+    ld hl, _VRAM
     ld bc, `00112233
     REPT 8
     ld a, b
@@ -85,7 +85,7 @@ SECTION "main", ROM0[$0150]
     ; ==============================================
     ; | LOAD SPRITE from $8800 to $8000 + 16 bytes |
     ; ==============================================
-    ld hl, $8800
+    ld hl, _VRAM + $800
     ld bc, ANISE_SPRITE
     REPT 16
     ld a, [bc]
@@ -107,18 +107,18 @@ SECTION "main", ROM0[$0150]
     ; | DMA TRANSFER to copy data from working RAM to OAM |
     ; =====================================================    
     ld bc, DMA_BYTECODE         ; Copy the little DMA routine into high RAM
-    ld hl, $ff80    
+    ld hl, _HRAM    
     REPT 13                     ; DMA routine is 13 bytes long
     ld a, [bc]
     inc bc
     ld [hl+], a
     ENDR
-    call $ff80                  ; start transfer
+    call _HRAM                  ; start transfer
     ; ======================================================
     ; | SET LCD CONTROLLER REGISTER to display some sprite |
     ; ======================================================
     ld a, %10010011             ; $91 plus bit 2
-    ld [$ff40], a
+    ld [rLCDC], a
 
 ; label, used to refer to some position in the code. Only exists in the source file.
 _halt:
