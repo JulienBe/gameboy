@@ -15,28 +15,28 @@ oam_buffer:
 ; code at $0150 in the final ROM.
 SECTION "main", ROM0[$0150]
 
-	; ======================
-	; | BACKGROUND PALETTE |
-	; ======================
-	ld a, %10000000		; write to palette 0. high bit to 1 to automatically increase where I will write 
-	ld [$ff68], a
-	; actually load colors
-	ld bc, %0111101000000000  ; cyan
+    ; ======================
+    ; | BACKGROUND PALETTE |
+    ; ======================
+    ld a, %10000000             ; write to palette 0. high bit to 1 to automatically increase where I will write 
+    ld [$ff68], a
+    ; actually load colors
+    ld bc, %0111101000000000    ; cyan
     ld a, c
     ld [$ff69], a
     ld a, b
     ld [$ff69], a
-    ld bc, %0000001111010000  ; green
+    ld bc, %0000001111010000    ; green
     ld a, c
     ld [$ff69], a
     ld a, b
     ld [$ff69], a
-    ld bc, %0100000000011110  ; pink
+    ld bc, %0100000000011110    ; pink
     ld a, c
     ld [$ff69], a
     ld a, b
     ld [$ff69], a
-    ld bc, %0111111111111111  ; white
+    ld bc, %0111111111111111    ; white
     ld a, c
     ld [$ff69], a
     ld a, b
