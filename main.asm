@@ -113,6 +113,12 @@ SECTION "main", ROM0[$0150]
     inc bc
     ld [hl+], a
     ENDR
+    call $ff80                  ; start transfer
+    ; ======================================================
+    ; | SET LCD CONTROLLER REGISTER to display some sprite |
+    ; ======================================================
+    ld a, %10010011             ; $91 plus bit 2
+    ld [$ff40], a
 
 ; label, used to refer to some position in the code. Only exists in the source file.
 _halt:
