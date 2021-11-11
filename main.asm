@@ -1,17 +1,5 @@
 INCLUDE "hardware.inc"
 
-; =============
-; | CONSTANTS |
-; =============
-BUTTON_RIGHT  EQU 0
-BUTTON_LEFT   EQU 1
-BUTTON_UP     EQU 2
-BUTTON_DOWN   EQU 3
-BUTTON_A      EQU 4
-BUTTON_B      EQU 5
-BUTTON_START  EQU 6
-BUTTON_SELECT EQU 7
-
 ; =========
 ; | MACRO |
 ; =========
@@ -249,9 +237,9 @@ vblank_loop:
     ld a, [rP1]    
     cpl                         ; Again, complement and mask off the lower four bits
     and a, $0f
-    swap a                      ; swaps the high and low nybbles in any register    
-    or a, b                     ; Combine b's lower nybble with a's high nybble    
-    ld [buttons], a             ; And finally store it in RAM
+    swap b                      ; put dpab in the high nybble 
+    or a, b                      
+    ld [buttons], a              
 
     ; ===============
     ; | LOGIC START |
@@ -264,19 +252,19 @@ vblank_loop:
     ld b, [hl]
     inc hl
     ld c, [hl]    
-    bit BUTTON_LEFT, a          ; This sets the z flag to match a particular bit in a    
-    jr z, skip_left            ; If z, the bit is zero, so left isn't held down    
+    bit PADB_LEFT, a            ; This sets the z flag to match a particular bit in a    
+    jr z, skip_left             ; If z, the bit is zero, so left isn't held down    
     dec c                       ; Otherwise, left is held down, so decrement x
 skip_left:    
-    bit BUTTON_RIGHT, a
+    bit PADB_RIGHT, a
     jr z, skip_right
     inc c
 skip_right:
-    bit BUTTON_UP, a
+    bit PADB_UP, a
     jr z, skip_up
     dec b
 skip_up:
-    bit BUTTON_DOWN, a
+    bit PADB_DOWN, a
     jr z, skip_down
     inc b
 skip_down:    
