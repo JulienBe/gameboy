@@ -65,6 +65,14 @@ wait_for_vblank:
     jr z, .vblank_loop          ; if not, keep waiting
     ei
     ret
+; copy c bytes from de to hl. c = 0 means to copy 256 bytes!
+copy:
+    ld a, [de]
+    inc de
+    ld [hl+], a
+    dec c
+    jr nz, copy
+    ret
     
 ; This is a directive for the assembler to put the following
 ; code at $0150 in the final ROM.
@@ -127,12 +135,10 @@ SECTION "main", ROM0[$0150]
     ; | LOAD BACKGROUND from $8000 to $8000 + 8 * 2 bytes |
     ; =====================================================
     ld hl, _VRAM
-    ld bc, EMPTY_SPRITE
-    REPT 16
-    ld a, [bc]
-    inc bc
-    ld [hl+], a
-    ENDR
+    ld de, EMPTY_SPRITE
+    ld c, 16
+    call copy
+    
     ; Read the grass sprite into tile 1, which immediately follows tile 0, so hl is already in the right place
     ld bc, GRASS_SPRITE
     REPT 16
@@ -157,13 +163,10 @@ screen_fill_loop:
     ; ==============================================
     ; | LOAD SPRITE from $8800 to $8000 + 16 bytes |
     ; ==============================================
+    ld de, ANISE_SPRITE
     ld hl, _VRAM + $800
-    ld bc, ANISE_SPRITE
-    REPT 16
-    ld a, [bc]
-    ld [hl+], a
-    inc bc
-    ENDR
+    ld c, 16
+    call copy    
 
     ; =======================
     ; | SET SPRITE POSITION |
@@ -179,14 +182,11 @@ screen_fill_loop:
 
     ; =====================================================
     ; | DMA TRANSFER to copy data from working RAM to OAM |
-    ; =====================================================    
-    ld bc, DMA_BYTECODE         ; Copy the little DMA routine into high RAM
-    ld hl, _HRAM    
-    REPT 13                     ; DMA routine is 13 bytes long
-    ld a, [bc]
-    inc bc
-    ld [hl+], a
-    ENDR
+    ; =====================================================
+    ld de, DMA_BYTECODE
+    ld hl, _HRAM
+    ld c, 13
+    call copy
     call _HRAM                  ; start transfer
 
     ; ======================================================
