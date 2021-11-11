@@ -1,6 +1,8 @@
 INCLUDE "hardware.inc"
 
-; Constants
+; =============
+; | CONSTANTS |
+; =============
 BUTTON_RIGHT  EQU 0
 BUTTON_LEFT   EQU 1
 BUTTON_UP     EQU 2
@@ -9,6 +11,16 @@ BUTTON_A      EQU 4
 BUTTON_B      EQU 5
 BUTTON_START  EQU 6
 BUTTON_SELECT EQU 7
+
+; =========
+; | MACRO |
+; =========
+dcolor: MACRO  ; $rrggbb -> gbc representation
+_r = ((\1) & $ff0000) >> 16 >> 3
+_g = ((\1) & $00ff00) >> 8  >> 3
+_b = ((\1) & $0000ff) >> 0  >> 3
+    dw (_r << 0) | (_g << 5) | (_b << 10)
+    ENDM
 
 SECTION "entry point", ROM0[$0100]
     nop
@@ -49,6 +61,22 @@ SECTION "Important twiddles", WRAM0[$C000]
 SECTION "OAM Buffer", WRAM0[$C100]
 oam_buffer:
     ds 4 * 40
+
+SECTION "Utility code", ROM0
+; idle until next vblank
+wait_for_vblank:
+    xor a                       ; clear the vblank flag
+    di                          ; avoid irq race after this ld
+    ld [vblank_flag], a
+.vblank_loop:
+    ei
+    halt                        ; wait for interrupt
+    di
+    ld a, [vblank_flag]         ; was it a vblank interrupt?
+    and a
+    jr z, .vblank_loop          ; if not, keep waiting
+    ei
+    ret
     
 ; This is a directive for the assembler to put the following
 ; code at $0150 in the final ROM.
@@ -60,37 +88,29 @@ SECTION "main", ROM0[$0150]
     ld a, IEF_VBLANK
     ldh [rIE], a
     ei
+    
+    ; ================
+    ; | TURN OFF LCD |
+    ; ================
+    call wait_for_vblank
+    ld a, [rLCDC]
+    and a, $ff & ~LCDCF_ON
+    ldh [rLCDC], a    
+
     ; ======================
     ; | BACKGROUND PALETTE |
     ; ======================
     ld a, %10000000                 ; write to palette 0. high bit to 1 to automatically increase where I will write 
-    ld [rBCPS], a                  ; Background Color Palette Specification
-    ; actually load colors
-    ld bc, %0111101000000000        ; cyan
-    ld a, c
-    ld [rBCPD], a                  ; Background Color Palette Data
-    ld a, b
-    ld [rBCPD], a
-    ld bc, %0000001111010000        ; green
-    ld a, c
-    ld [rBCPD], a
-    ld a, b
-    ld [rBCPD], a
-    ld bc, %0100000000011110        ; pink
-    ld a, c
-    ld [rBCPD], a
-    ld a, b
-    ld [rBCPD], a
-    ld bc, %0111111111111111        ; white
-    ld a, c
-    ld [rBCPD], a
-    ld a, b
-    ld [rBCPD], a
+    ldh [rBCPS], a                  ; Background Color Palette Specification
+    ld hl, PALETTE_BG0
+    REPT 8
+    ld a, [hl+]
+    ld [rBCPD], a                   ; Background Color Palette Data
+    ENDR
 
     ; ==================
     ; | SPRITE PALETTE |
     ; ==================
-
     ld a, %10000000
     ld [rOCPS], a                  ; Object Color Palette Specification
 
@@ -119,13 +139,32 @@ SECTION "main", ROM0[$0150]
     ; | LOAD BACKGROUND from $8000 to $8000 + 8 * 2 bytes |
     ; =====================================================
     ld hl, _VRAM
-    ld bc, `00112233
-    REPT 8
-    ld a, b
-    ld [hl+], a
-    ld a, c
+    ld bc, EMPTY_SPRITE
+    REPT 16
+    ld a, [bc]
+    inc bc
     ld [hl+], a
     ENDR
+    ; Read the grass sprite into tile 1, which immediately follows tile 0, so hl is already in the right place
+    ld bc, GRASS_SPRITE
+    REPT 16
+    ld a, [bc]
+    inc bc
+    ld [hl+], a
+    ENDR
+
+    ; ============================    
+    ; | SET BACKGROUND TILE USED |
+    ; ============================    
+    ; Fill the screen buffer with a pattern of grass tiles
+    ; Note that the buffer is 32x32 tiles, and it ends at $9c00
+    ld hl, $9800
+screen_fill_loop:    
+    ld a, $01                   ; Use tile 1 for every tile in this row.    
+    ld [hl+], a
+    ld a, h                     ; If we haven't reached $9c00 yet, continue looping
+    cp a, $9C
+    jr c, screen_fill_loop
 
     ; ==============================================
     ; | LOAD SPRITE from $8800 to $8000 + 16 bytes |
@@ -137,6 +176,7 @@ SECTION "main", ROM0[$0150]
     ld [hl+], a
     inc bc
     ENDR
+
     ; =======================
     ; | SET SPRITE POSITION |
     ; =======================    
@@ -148,6 +188,7 @@ SECTION "main", ROM0[$0150]
     ld [hl+], a    
     ld a, %00000000             ; attributes, including palette, which are all zero
     ld [hl+], a
+
     ; =====================================================
     ; | DMA TRANSFER to copy data from working RAM to OAM |
     ; =====================================================    
@@ -159,24 +200,25 @@ SECTION "main", ROM0[$0150]
     ld [hl+], a
     ENDR
     call _HRAM                  ; start transfer
+
     ; ======================================================
     ; | SET LCD CONTROLLER REGISTER to display some sprite |
     ; ======================================================
-    ld a, %10010011             ; $91 plus bit 2
+    ld a, LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON | LCDCF_ON | LCDCF_BG8000
     ld [rLCDC], a
 
 ; label, used to refer to some position in the code. Only exists in the source file.
 vblank_loop:    
     halt                        ; Stop all CPU activity until there's an interrupt.  
     ; The Game Boy hardware has a bug where, under rare and unspecified conditions, the instruction after a halt will be skipped.      
-    nop                         ; So every halt should be followed by a nop    
+    nop                         ; So every halt should be followed by a nop  
+
     ; ===============================
     ; | ENSURE ITS VBLANK INTERRUPT |
     ; ===============================
     ld a, [vblank_flag]         ; I might later use one of the other interrupts, all of which would also cancel the halt
     and a                       ; This sets the zero flag if a is zero
     jr z, vblank_loop
-
 
     xor a, a                    ; This always sets a to zero, and is shorter (and thus faster) than ld a, 0
     ld [vblank_flag], a
@@ -187,11 +229,8 @@ vblank_loop:
     ; ===============
     ; | READ INPUTS |
     ; ===============
-
     ; It takes a moment to get a reliable read after requesting a particular set of buttons, so we need to wait a moment
-    ; this is based on the code from the manual, which stalls simply by reading multiple times
-
-    
+    ; this is based on the code from the manual, which stalls simply by reading multiple times  
     ld a, %00100000             ; bit 4 being OFF means to read the d-pad)
     ldh [rP1], a    
     ld a, [rP1]                 ; But it's unreliable, so do it twice
@@ -248,7 +287,38 @@ skip_down:
     jp vblank_loop
 
 
+; ========
+; | DATA |
+; ========
 SECTION "Sprites", ROM0
+PALETTE_BG0:
+    dcolor $80c870  ; light green
+    dcolor $48b038  ; darker green
+    dcolor $000000  ; unused
+    dcolor $000000  ; unused
+PALETTE_ANISE:
+    dcolor $000000  
+    dcolor $204048
+    dcolor $20b0b0
+    dcolor $f8f8f8
+GRASS_SPRITE:
+    dw `00000000
+    dw `00000000
+    dw `01000100
+    dw `01010100
+    dw `00010000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+EMPTY_SPRITE:
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
+    dw `00000000
 ANISE_SPRITE:
     dw `00000000
     dw `00001333
