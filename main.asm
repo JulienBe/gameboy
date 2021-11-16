@@ -1,3 +1,10 @@
+GAME_NAME equs " SNAKE "
+SGB_SUPPORT equ 1
+; GBC_SUPPORT equ 1 ; Note that this line is commented out ,
+; setting it to 0 does not disable GBC support
+ROM_SIZE equ 2
+RAM_SIZE equ 1
+INCLUDE " gingerbread.asm"
 INCLUDE "hardware.inc"
 
 ; =========
@@ -134,18 +141,38 @@ SECTION "main", ROM0[$0150]
     ; =====================================================
     ; | LOAD BACKGROUND from $8000 to $8000 + 8 * 2 bytes |
     ; =====================================================
+    ld de, BACKGROUND
     ld hl, _VRAM
-    ld de, EMPTY_SPRITE
-    ld c, 16
+    ld c, 255
     call copy
-    
-    ; Read the grass sprite into tile 1, which immediately follows tile 0, so hl is already in the right place
-    ld bc, GRASS_SPRITE
-    REPT 16
-    ld a, [bc]
-    inc bc
-    ld [hl+], a
-    ENDR
+    ld de, BACKGROUND+255
+    ld hl, _VRAM+255
+    ld c, 255
+    call copy
+    ld de, BACKGROUND+255*2
+    ld hl, _VRAM+255*2
+    ld c, 255
+    call copy
+    ld de, BACKGROUND+255*3
+    ld hl, _VRAM+255*3
+    ld c, 255
+    call copy
+    ld de, BACKGROUND+255*4
+    ld hl, _VRAM+255*4
+    ld c, 255
+    call copy
+;    ld hl, _VRAM
+;    ld de, EMPTY_SPRITE
+;    ld c, 16
+;    call copy
+;    
+;    ; Read the grass sprite into tile 1, which immediately follows tile 0, so hl is already in the right place
+;    ld bc, GRASS_SPRITE
+;    REPT 16
+;    ld a, [bc]
+;    inc bc
+;    ld [hl+], a
+;    ENDR
 
     ; ============================    
     ; | SET BACKGROUND TILE USED |
@@ -153,12 +180,15 @@ SECTION "main", ROM0[$0150]
     ; Fill the screen buffer with a pattern of grass tiles
     ; Note that the buffer is 32x32 tiles, and it ends at $9c00
     ld hl, $9800
+    ld b, $00
 screen_fill_loop:    
-    ld a, $01                   ; Use tile 1 for every tile in this row.    
+    ld a, b    
     ld [hl+], a
+    inc b
     ld a, h                     ; If we haven't reached $9c00 yet, continue looping
     cp a, $9C
     jr c, screen_fill_loop
+
 
     ; ==============================================
     ; | LOAD SPRITE from $8800 to $8000 + 16 bytes |
@@ -316,6 +346,9 @@ ANISE_SPRITE:
     dw `00113332
     dw `00003002
     dw `00003002
+
+BACKGROUND:
+    incbin "background.2bpp"
 
 SECTION "DMA Bytecode", ROM0
 DMA_BYTECODE:
