@@ -1,48 +1,33 @@
-
 INCLUDE "defines.asm"
-
-; =========
-; | MACRO |
-; =========
-dcolor: MACRO  ; $rrggbb -> gbc representation
-_r = ((\1) & $ff0000) >> 16 >> 3
-_g = ((\1) & $00ff00) >> 8  >> 3
-_b = ((\1) & $0000ff) >> 0  >> 3
-	dw (_r << 0) | (_g << 5) | (_b << 10)
-	ENDM
 
 SECTION "Header", ROM0[$100]
 
-	; This is your ROM's entry point
-	; You have 4 bytes of code to do... something
-	sub $11 ; This helps check if we're on CGB more efficiently
+	; This is your ROM's entry point. You have 4 bytes of code to do... something
+	sub $11 										; This helps check if we're on CGB more efficiently
 	jr EntryPoint
 
-	; Make sure to allocate some space for the header, so no important
-	; code gets put there and later overwritten by RGBFIX.
-	; RGBFIX is designed to operate over a zero-filled header, so make
-	; sure to put zeros regardless of the padding value. (This feature
-	; was introduced in RGBDS 0.4.0, but the -MG etc flags were also
-	; introduced in that version.)
+	; Make sure to allocate some space for the header, so no important code gets put there and later overwritten by RGBFIX.
+	; RGBFIX is designed to operate over a zero-filled header, so make sure to put zeros regardless of the padding value. 
+	; (This feature was introduced in RGBDS 0.4.0, but the -MG etc flags were also introduced in that version.)
 	ds $150 - @, 0
 
 EntryPoint:
 	ldh [hConsoleType], a
 
 Reset::
-	di ; Disable interrupts while we set up
+	di 																; Disable interrupts while we set up
 
-	; Kill sound
 	xor a
-	ldh [rNR52], a
+	ldh [rNR52], a										; Kill sound
 
 	; Wait for VBlank and turn LCD off
 .waitVBlank
 	ldh a, [rLY]
 	cp SCRN_Y
 	jr c, .waitVBlank
-	xor a
-	ldh [rLCDC], a
+	xor a															; |_$8000–$87FF Sprite 0-127_|  |_$8800–$8FFF Sprite 128-255 & BG 128-255_|  |_$9000–$97FF BG 0-127_|
+	ldh [rLCDC], a 
+
 	; Goal now: set up the minimum required to turn the LCD on again
 	; A big chunk of it is to make sure the VBlank handler doesn't crash
 
@@ -60,84 +45,45 @@ Reset::
 	dec b
 	jr nz, .copyOAMDMA
 
-
-	; ======================
-	; | BACKGROUND PALETTE |
-	; ======================
-	ld a, %10000000                 ; write to palette 0. high bit to 1 to automatically increase where I will write 
-	ldh [rBCPS], a                  ; Background Color Palette Specification
-	ld hl, PALETTE_BG0
-	REPT 8
-	ld a, [hl+]
-	ld [rBCPD], a                   ; Background Color Palette Data
-	ENDR
-
-	; ==================
-	; | SPRITE PALETTE |
-	; ==================
-	ld a, %10000000
-	ld [rOCPS], a                  ; Object Color Palette Specification
+	call load_palettes
+	call LoadBackground
 	; You will also need to reset your handlers' variables below
-	; I recommend reading through, understanding, and customizing this file
-	; in its entirety anyways. This whole file is the "global" game init,
-	; so it's strongly tied to your own game.
-	; I don't recommend clearing large amounts of RAM, nor to init things
-	; here that can be initialized later.
-
-	; Reset variables necessary for the VBlank handler to function correctly
-	; But only those for now
+	; I recommend reading through, understanding, and customizing this file in its entirety anyways. 
+	; This whole file is the "global" game init, so it's strongly tied to your own game.
+	; I don't recommend clearing large amounts of RAM, nor to init things here that can be initialized later.
+		
 	xor a
-	ldh [hVBlankFlag], a
-	ldh [hOAMHigh], a
+	ldh [hVBlankFlag], a								; Reset variables necessary for the VBlank handler to function correctly
+	ldh [hOAMHigh], a										; But only those for now
 	ldh [hCanSoftReset], a
-	dec a ; ld a, $FF
+	dec a
 	ldh [hHeldKeys], a
-
-	; Load the correct ROM bank for later
-	; Important to do it before enabling interrupts
-	ld a, BANK(Intro)
-	ldh [hCurROMBank], a
+		
+	ld a, BANK(Intro)										; Load the correct ROM bank for later		
+	ldh [hCurROMBank], a								; Important to do it before enabling interrupts
 	ld [rROMB0], a
-
-	; Select wanted interrupts here
-	; You can also enable them later if you want
-	ld a, IEF_VBLANK
-	ldh [rIE], a
+		
+	ld a, IEF_VBLANK										; Select wanted interrupts here
+	ldh [rIE], a												; You can also enable them later if you want
 	xor a
-	ei ; Only takes effect after the following instruction
-	ldh [rIF], a ; Clears "accumulated" interrupts
-
-	; Init shadow regs
-	; xor a
-	ldh [hSCY], a
+	ei 																	; Only takes effect after the following instruction
+	ldh [rIF], a 												; Clears "accumulated" interrupts
+	
+	xor a
+	ldh [hSCY], a												; Init shadow regs
 	ldh [hSCX], a
 	ld a, LCDCF_ON | LCDCF_BGON
-	ldh [hLCDC], a
-	; And turn the LCD on!
-	ldh [rLCDC], a
-
-	; Clear OAM, so it doesn't display garbage
-	; This will get committed to hardware OAM after the end of the first
-	; frame, but the hardware doesn't display it, so that's fine.
-	ld hl, wShadowOAM
-	ld c, NB_SPRITES * 4
-	xor a
+	ldh [hLCDC], a	
+	ldh [rLCDC], a											; And turn the LCD on!
+		
+	ld hl, wShadowOAM										; Clear OAM, so it doesn't display garbage
+	ld c, NB_SPRITES * 4								; This will get committed to hardware OAM after the end of the first
+	xor a																; frame, but the hardware doesn't display it, so that's fine.
 	rst MemsetSmall
 	ld a, h ; ld a, HIGH(wShadowOAM)
 	ldh [hOAMHigh], a
-
-	; `Intro`'s bank has already been loaded earlier
-	jp Intro
-
-; ========
-; | DATA |
-; ========
-SECTION "Sprites", ROM0
-PALETTE_BG0:
-	dcolor $80c870  ; light green
-	dcolor $48b038  ; darker green
-	dcolor $000000  ; unused
-	dcolor $000000  ; unused
+	
+	jp Intro														; `Intro`'s bank has already been loaded earlier
 
 SECTION "OAM DMA routine", ROMX
 
@@ -163,22 +109,18 @@ hConsoleType:: db
 ; (Mind that if using ROMB1, you will run into problems)
 hCurROMBank:: db
 
-
 SECTION "OAM DMA", HRAM
 
 hOAMDMA::
 	ds OAMDMA.end - OAMDMA
-
 
 SECTION UNION "Shadow OAM", WRAM0,ALIGN[8]
 
 wShadowOAM::
 	ds NB_SPRITES * 4
 
-
 SECTION "Stack", WRAM0
 
 wStack:
 	ds STACK_SIZE
 wStackBottom:
-

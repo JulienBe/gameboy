@@ -1,1 +1,0 @@
-NB_PB8_BLOCKS equ ( 528  + 8 - 1) / 8
