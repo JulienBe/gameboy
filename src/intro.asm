@@ -2,57 +2,79 @@ INCLUDE "include/hardware.inc/hardware.inc"
 
 SECTION "Intro", ROMX
 
-Intro::	
-	rst WaitVBlank	
-	xor a
-	jr @
+Intro::  
+main_loop:  
+  rst WaitVBlank
+; ====================
+; || ACT ON BUTTONS ||
+; ====================  
+  ld a, [hHeldKeys]
+  bit PADB_LEFT, a        ;? button detect
+  jr z, .skip_left        ;? button detect                  
+  ldh a, [hSCX]           ;= if left pressed
+  dec a                   ;= if left pressed
+  ldh [hSCX], a           ;= if left pressed
+  ld a, [hHeldKeys]
+  .skip_left:
+    bit PADB_RIGHT, a     ;? button detect
+    jr z, .skip_right     ;? button detect
+    ldh a, [hSCX]         ;= if right pressed
+    inc a                 ;= if right pressed
+    ldh [hSCX], a         ;= if right pressed
+    ld a, [hHeldKeys]
+  .skip_right:    
+    bit PADB_UP, a        ;? button detect
+    jr z, .skip_up        ;? button detect
+    ldh a, [hSCY]         ;= scroll up
+    dec a                 ;= scroll up
+    ldh [hSCY], a         ;= scroll up
+    ld a, [hHeldKeys]
+  .skip_up:
+    bit PADB_DOWN, a      ;? button detect
+    jr z, .skip_down      ;? button detect
+    ldh a, [hSCY]         ;= scroll down
+    inc a                 ;= scroll down
+    ldh [hSCY], a         ;= scroll down  
+  .skip_down
+  ldh a, [hSCY]
+  ldh [rSCY], a
+  ldh a, [hSCX]
+  ldh [rSCX], a
+  jr main_loop
 
-SECTION "load splash screen", ROM0 ;this is called by the header when the screen is off
-LoadBackground::
-.loadTiles
-	ld hl, $8800
-  ld bc, BackgroundTiles
-  REPT 16
-  ld a, [bc]
-  inc bc
-  ld [hl+], a
-  ENDR	
+load_background::
+  ld de, background_tiles  
+  ld hl, $9000  
+  ld bc, SIZEOF("Background Tiles")
+;  call memcpy_small
+  call Memcpy
+  
+  ld de, background_tilemap
+  ld hl, $9800
+  ld bc, SIZEOF("Background Tilemap")
+  call Memcpy  
+  ret
+load_car::
+  ld de, carcar_north  
+  ld hl, $9000 + SIZEOF("CarCar North")
+  ld bc, SIZEOF("CarCar North")
+  call Memcpy
 
-	ld hl, $9800
-.load_tilemap	
-	ld a, 128
-	ld [hl+], a
-	ld a, h
-	cp a, $9C
-	jr c, .load_tilemap
-;.loadTilemap
-;	ld hl, $9400
-;	ld b, SCRN_Y_B
-;.row
-;	ld c, SCRN_X_B
-;	call LCDMemcpySmall
-;	;move to the next row
-;	ld a, l
-;	add SCRN_VX_B - SCRN_X_B
-;	ld l, a
-;	adc h
-;	sub l
-;	ld h, a
-;	dec b
-;	jr nz, .row
-;	ret
+SECTION "vars", HRAM
+player_x:
+  db
+player_y:
+  db
+
+SECTION "CarCar North", ROM0
+carcar_north:
+INCBIN "res/carcar_north.2bpp"
 
 SECTION "Background Tiles", ROM0
-BackgroundTiles:
-;	INCBIN "res/background.2bpp"
-	dw `00000000
-	dw `00000000
-	dw `01000100
-	dw `01010100
-	dw `00010000
-	dw `00000000
-	dw `00000000
-	dw `00000000	
+background_tiles:
+INCBIN "res/circuit256.2bpp"
+
 SECTION "Background Tilemap", ROM0
-BackgroundTilemap:
-	INCBIN "res/background.imagemap"
+background_tilemap:
+;INCBIN "res/background.bit7.tilemap"
+INCBIN "res/circuit256.tilemap"

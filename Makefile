@@ -108,9 +108,9 @@ res/%.1bpp: res/%.png
 	@$(MKDIR_P) $(@D)
 	$(RGBGFX) -d 1 -o $@ $<
 
-res/%.2bpp: res/%.png
-	@mkdir -p $(@D)
-	$(RGBGFX) -u -o $@ $<
+#res/%.image: res/%.png
+#	@$(MKDIR_P) $(@D)
+#	$(RGBGFX) -u -o $@ $<
 
 # Define how to compress files using the PackBits16 codec
 # Compressor script requires Python 3
@@ -132,9 +132,20 @@ res/%.pb8.size: res/%
 	@$(MKDIR_P) $(@D)
 	$(call filesize,$<,8) > res/$*.pb8.size
 
-res/%.imagemap: res/%.png
+#res/%.imagemap: res/%.png
+#	@$(MKDIR_P) $(@D)
+#	$(RGBGFX) -u -t $@ $<
+
+res/%.2bpp: res/%.png
 	@$(MKDIR_P) $(@D)
-	$(RGBGFX) -u -t $@ $<
+	$(RGBGFX) -u -o $@ $<
+
+res/%.tilemap: res/%.png
+	@$(MKDIR_P) $(@D)
+	$(RGBGFX) -u -t $@ $<	
+# RGBGFX generates tilemaps with sequential tile IDs, which works fine for $8000 mode but not $8800 mode; `bit7ify.py` takes care to flip bit 7 so maps become $8800-compliant
+res/%.bit7.tilemap: src/tools/bit7ify.py %.tilemap
+	$^ $@
 
 ###############################################
 #                                             #

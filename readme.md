@@ -55,11 +55,12 @@ Sprites always use “$8000 addressing”, but the BG and Window can use either 
 The Game Boy contains two 32x32 tile maps in VRAM at the memory areas $9800-$9BFF and $9C00-$9FFF.
 Any of these maps can be used to display the Background or the Window.
 
-Each tile map contains the 1-byte indexes of the tiles to be displayed.
+Each tile map contains the 1-byte indexes of the tiles to be displayed. So, 360 bytes for a 20*18 tiles screen.
 
 Tiles are obtained from the Tile Data Table using either of the two addressing modes (described in VRAM Tile Data), which can be selected via the LCDC register.
 
 In CGB Mode, an additional map of 32x32 bytes is stored in VRAM Bank 1
+
 Each byte defines attributes for the corresponding tile-number map entry in VRAM Bank 0, that is, 1:9800 defines the attributes for the tile at 0:9800
 
 ```
@@ -71,14 +72,32 @@ Bit 3    Tile VRAM Bank number      (0=Bank 0, 1=Bank 1)
 Bit 2-0  Background Palette number  (BGP0-7)
 ```
 
+### Palettes
 
+The CGB has RAM to store its color palettes. 
+Unlike most of the hardware interface, palette RAM (or CRAM for Color RAM) is not accessed directly, but instead through the following registers:
+
+##### FF68 - BCPS/BGPI (Background Color Palette Specification or Background Palette Index)
+
+This register is used to address a byte in the CGB’s background palette RAM. 
+Since there are 8 palettes, 8 palettes × 4 colors/palette × 2 bytes/color = 64 bytes can be addressed.
+
+```
+Bit 7     Auto Increment  (0=Disabled, 1=Increment after Writing)
+Bit 5-0   Address ($00-3F)
+```
+
+First comes BGP0 color number 0, then BGP0 color number 1, BGP0 color number 2, BGP0 color number 3, BGP1 color number 0, and so on. 
+Thus, address $03 allows accessing the second (upper) byte of BGP0 color #1 via BCPD, which contains the color’s blue and upper green bits.
+
+Data can be read from or written to the specified CRAM address through BCPD/BGPD. 
+If the Auto Increment bit is set, the index gets incremented after each write to BCPD. 
 
 ### What to do 
 
 - Set LCDC.4 to 0
 - Load 16 bytes to $8800 which is BG 128
 - fill $9800 to $9C00 with 128
-
 
 
 ### Sprites
@@ -101,6 +120,11 @@ There are three "blocks" of 128 tiles each:
 - Block 1 is $8800-8FFF
 - Block 2 is $9000-97FF
 
+# Camera
+
+rSCY & rSCX: top-left coordinates of the 160×144 screen within the 256×256 pixels BG map. Values in the range 0–255 may be used.
+
+
 # To keep in mind ?
 
 ##### NoNop
@@ -118,3 +142,15 @@ This "skipping" does not seem to occur on the GameBoy Color even in regular GB m
 CGB boot rom only compares half of the logo ? 
 
 Source: someone in the comment section of a demo, somewhere on internet
+
+###### Optim
+
+- Checker : https://github.com/Rangi42/polishedcrystal/blob/master/utils/optimize.py
+- Doc: https://github.com/pret/pokecrystal/wiki/Optimizing-assembly-code
+
+###### Interrupts
+
+https://gist.github.com/GreenAndEievui/d695041412e6382358d55b3290c193aa
+
+
+c++ unit test ?

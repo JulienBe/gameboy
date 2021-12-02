@@ -27,7 +27,7 @@ Reset::
 	jr c, .waitVBlank
 	xor a															; |_$8000–$87FF Sprite 0-127_|  |_$8800–$8FFF Sprite 128-255 & BG 128-255_|  |_$9000–$97FF BG 0-127_|
 	ldh [rLCDC], a 
-
+;
 	; Goal now: set up the minimum required to turn the LCD on again
 	; A big chunk of it is to make sure the VBlank handler doesn't crash
 
@@ -46,7 +46,8 @@ Reset::
 	jr nz, .copyOAMDMA
 
 	call load_palettes
-	call LoadBackground
+	call load_background
+	call load_car
 	; You will also need to reset your handlers' variables below
 	; I recommend reading through, understanding, and customizing this file in its entirety anyways. 
 	; This whole file is the "global" game init, so it's strongly tied to your own game.
@@ -72,7 +73,7 @@ Reset::
 	xor a
 	ldh [hSCY], a												; Init shadow regs
 	ldh [hSCX], a
-	ld a, LCDCF_ON | LCDCF_BGON
+	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_BG9800 
 	ldh [hLCDC], a	
 	ldh [rLCDC], a											; And turn the LCD on!
 		
@@ -82,7 +83,7 @@ Reset::
 	rst MemsetSmall
 	ld a, h ; ld a, HIGH(wShadowOAM)
 	ldh [hOAMHigh], a
-	
+	;;
 	jp Intro														; `Intro`'s bank has already been loaded earlier
 
 SECTION "OAM DMA routine", ROMX
