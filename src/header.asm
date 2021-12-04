@@ -46,8 +46,7 @@ Reset::
 	jr nz, .copyOAMDMA
 
 	call load_palettes
-	call load_background
-	call load_car
+	call load_tiles
 	; You will also need to reset your handlers' variables below
 	; I recommend reading through, understanding, and customizing this file in its entirety anyways. 
 	; This whole file is the "global" game init, so it's strongly tied to your own game.
@@ -73,7 +72,7 @@ Reset::
 	xor a
 	ldh [hSCY], a												; Init shadow regs
 	ldh [hSCX], a
-	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_BG9800 
+	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_BG9800 | LCDCF_OBJON
 	ldh [hLCDC], a	
 	ldh [rLCDC], a											; And turn the LCD on!
 		
@@ -118,7 +117,9 @@ hOAMDMA::
 SECTION UNION "Shadow OAM", WRAM0,ALIGN[8]
 
 wShadowOAM::
-	ds NB_SPRITES * 4
+	player_car_soam::
+		ds 4
+	ds (NB_SPRITES - 1) * 4
 
 SECTION "Stack", WRAM0
 

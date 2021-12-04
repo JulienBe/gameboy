@@ -16,13 +16,10 @@ SECTION "Rst $08", ROM0[$08]
 
 ; Waits for the next VBlank beginning
 ; Requires the VBlank handler to be able to trigger, otherwise will loop infinitely
-; This means IME should be set, the VBlank interrupt should be selected in IE,
-; and the LCD should be turned on.
-; WARNING: Be careful if calling this with IME reset (`di`), if this was compiled
-; with the `-h` flag, then a hardware bug is very likely to cause this routine to
-; go horribly wrong.
-; Note: the VBlank handler recognizes being called from this function (through `hVBlankFlag`),
-; and does not try to save registers if so. To be safe, consider all registers to be destroyed.
+; This means IME should be set, the VBlank interrupt should be selected in IE, and the LCD should be turned on.
+; WARNING: Be careful if calling this with IME reset (`di`), if this was compiled with the `-h` flag, then a hardware bug is very likely to cause this routine to go horribly wrong.
+; Note: the VBlank handler recognizes being called from this function (through `hVBlankFlag`), and does not try to save registers if so.
+; To be safe, consider all registers to be destroyed.
 ; @destroy Possibly every register. The VBlank handler stops preserving anything when executed from this function
 WaitVBlank::
 	ld a, 1
@@ -145,9 +142,8 @@ VBlankHandler:
 	ldh a, [hOBP1]
 	ldh [rOBP1], a
 
-	; OAM DMA can occur late in the handler, because it will still work even
-	; outside of VBlank. Sprites just will not appear on the scanline(s)
-	; during which it's running.
+	; OAM DMA can occur late in the handler, because it will still work even outside of VBlank.
+	; Sprites just will not appear on the scanline(s) during which it's running.
 	ldh a, [hOAMHigh]
 	and a
 	jr z, .noOAMTransfer
@@ -157,8 +153,7 @@ VBlankHandler:
 .noOAMTransfer
 
 	; Put all operations that cannot be interrupted above this line
-	; For example, OAM DMA (can't jump to ROM in the middle of it),
-	; VRAM accesses (can't screw up timing), etc
+	; For example, OAM DMA (can't jump to ROM in the middle of it), VRAM accesses (can't screw up timing), etc
 	ei
 
 	ldh a, [hVBlankFlag]
@@ -231,18 +226,16 @@ ENDR
 SECTION "VBlank HRAM", HRAM
 
 ; DO NOT TOUCH THIS
-; When this flag is set, the VBlank handler will assume the caller is `WaitVBlank`,
-; and attempt to exit it. You don't want that to happen outside of that function.
+; When this flag is set, the VBlank handler will assume the caller is `WaitVBlank`, and attempt to exit it.
+; You don't want that to happen outside of that function.
 hVBlankFlag:: db
 
 ; High byte of the address of the OAM buffer to use.
-; When this is non-zero, the VBlank handler will write that value to rDMA, and
-; reset it.
+; When this is non-zero, the VBlank handler will write that value to rDMA, and reset it.
 hOAMHigh:: db
 
 ; Shadow registers for a bunch of hardware regs.
-; Writing to these causes them to take effect more or less immediately, so these
-; are copied to the hardware regs by the VBlank handler, taking effect between frames.
+; Writing to these causes them to take effect more or less immediately, so these are copied to the hardware regs by the VBlank handler, taking effect between frames.
 ; They also come in handy for "resetting" them if modifying them mid-frame for raster FX.
 hLCDC:: db
 hSCY:: db

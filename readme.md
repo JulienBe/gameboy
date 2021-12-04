@@ -154,3 +154,18 @@ https://gist.github.com/GreenAndEievui/d695041412e6382358d55b3290c193aa
 
 
 c++ unit test ?
+
+###### More than 40 sprites
+
+PinoBatch
+ — 
+Today at 4:37 PM
+old and busted: allocate a range of OAM entries to each sprite when it spawns and deallocate it when the sprite despawns
+new hotness: every frame, start at entry 0, write all OAM entries front to back, and fill the rest of shadow OAM with Y=0
+there are reasons for each
+
+Eievui
+ — 
+Today at 4:35 PM
+Just so you know, you should avoid using shadow OAM addresses once you have more sprites, instead using a function to dynamically fill up OAM.
+
